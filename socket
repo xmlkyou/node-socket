@@ -1,0 +1,49 @@
+var fs = require('fs');
+var readline = require('readline');
+var util=require('util');
+var net = require('net');
+var iconv = require("iconv-lite");
+var ipstr,portstr,svcstr,content;content='';
+var arguments = process.argv.splice(2);
+console.log('所传递的参数是：', arguments[0]);
+var rstr = fs.createReadStream(arguments[0]).pipe(iconv.decodeStream('gbk'));   
+var objReadline = readline.createInterface({ input: rstr, terminal: true});
+var index=1;
+objReadline.on('line', (line)=>{ 
+	//console.log(index, line);
+ 	if(index==1){     
+		ipstr = line.toString();      
+	} 
+	if(index==2){     
+		portstr = line.toString();
+ 	} 
+	if(index==3){     
+		svcstr = line.toString();
+ 	} 
+	if(index>3){
+     	content=content+line.toString(); 
+	 }  
+	 index ++; 
+});
+
+objReadline.on('close', ()=>{
+    console.log('close',ipstr,portstr,svcstr);    
+	console.log('content:',content);    
+	//content='MBD010000001190052999-O00FE-CFBCIQ000000000020000000<Res><Header><TX_CODE>GWKGET</TX_CODE><xml>中午<xml></Header></Res>';
+ 	var sendlen=52+Buffer.byteLength(iconv.encode(content, 'gbk'), 'gbk');                              
+	var headstr=util.format('MBD01000000%d0052%s000000000020000000%s',sendlen,svcstr,content);        
+	var client = net.createConnection({ port: portstr,host: ipstr }, () => {      
+		//'connect' listener      
+		console.log('connected to server:',iconv.encode(headstr, 'gbk'));       
+		client.write(iconv.encode(headstr, 'gbk'));    
+	});    
+	client.on('data', (data) => {      
+		console.log(data.toString());      
+		client.end();    
+	});    
+	client.on('end', () => {     
+	console.log('disconnected from server');   
+	});  
+});
+
+
